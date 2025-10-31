@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+langgraph
+huggingface_hub
+pydantic
+python-multipart

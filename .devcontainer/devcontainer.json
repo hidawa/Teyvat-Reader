@@ -1,0 +1,20 @@
+{
+  "name": "Teyvat-Reader",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    "ghcr.io/devcontainers/features/nvidia-cuda:1": {
+      "version": "12.2"
+    }
+  },
+  "runArgs": ["--gpus", "all"],
+  "containerEnv": {
+    "NVIDIA_VISIBLE_DEVICES": "all",
+    "NVIDIA_DRIVER_CAPABILITIES": "compute,utility"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "ms-toolsai.jupyter"]
+    }
+  },
+  "postCreateCommand": "pip install uv && uv init && uv venv && uv add requirements.txt"
+}
