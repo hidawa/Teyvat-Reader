@@ -1,6 +1,11 @@
-fastapi
-uvicorn
-langgraph
-huggingface_hub
+dash
 pydantic
+torch
+Pillow
+requests
+langgraph
+fastapi
 python-multipart
+uvicorn
+transformers
+huggingface-hub<1.0
