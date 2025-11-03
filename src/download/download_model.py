@@ -14,4 +14,5 @@ def download_deepseek_vl2(model_name: str = "deepseek-ai/deepseek-vl2-small",
 
 if __name__ == "__main__":
     # 例えば Tiny／Small／Full 版を選択可能
-    download_deepseek_vl2("deepseek-ai/deepseek-vl2-small", "./models/deepseek-vl2-small")
+    # download_deepseek_vl2("deepseek-ai/deepseek-vl2-small", "./models/deepseek-vl2-small")
+    download_deepseek_vl2("deepseek-ai/deepseek-vl2-tiny", "./models/deepseek-vl2-tiny")
