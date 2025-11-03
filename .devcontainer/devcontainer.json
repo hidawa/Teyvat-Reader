@@ -16,5 +16,7 @@
       "extensions": ["ms-python.python", "ms-toolsai.jupyter"]
     }
   },
-  "postCreateCommand": "pip install uv && uv init && uv venv && uv add requirements.txt"
+  // TODO: どちらか分けたい
+  // "postCreateCommand": "pip install uv && uv add -r requirements.txt"
+  "postCreateCommand": "pip install uv && uv sync && uv pip install torch --torch-backend=auto"
 }

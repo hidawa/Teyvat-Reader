@@ -1,66 +1,102 @@
 """
-LangGraph 風にノードを定義して動かすラッパー。
-ここでは依存を少なくするために簡易オーケストレータ実装を使っています。
-（本番は langgraph を使う場合は Graph を置き換えてください）
+LangGraph版のエージェント実行グラフ。
+画像処理・知識検索は除外し、テキスト入力のみをリフレクションノードで処理します。
 """
-from typing import Any, Dict
+
+from langgraph.graph import StateGraph, START, END
+from langchain.tools import tool
+from typing import Any, List, TypedDict, Optional
 from pydantic import BaseModel
-from .nodes.image_analysis import ImageAnalysisInput, run_image_analysis
-from .nodes.knowledge_search import KnowledgeSearchInput, run_knowledge_search
+
+from src.models.request_models import ChatRequest
+from src.models.response_models import AgentResponse
+
 from .nodes.reflection import ReflectionInput, run_reflection
-from .nodes.ocr_node import OCRInput, run_ocr
+# from .nodes.ocr_node import OCRInput, run_ocr
+# from .nodes.image_analysis import ImageAnalysisInput, run_image_analysis
 
-from src.models.response_models import AgentResponse, NodeOutput
 
-import asyncio
+# --- 状態モデル -------------------------------------------------------------
 
-async def run_agent(chat_request):
+class AgentState(BaseModel):
+    """LangGraphの状態。"""
+    input: str
+    plans: List[str]
+    feedbacks: List[str]
+    output: Optional[str]
+    iteration: int
+
+
+# --- ノード定義 -------------------------------------------------------------
+
+# OCR ノード（コメントアウト）
+# @tool
+# def ocr_node(state: AgentState) -> AgentState:
+#     """OCR解析"""
+#     ocr_in = OCRInput(image_path=state.image_path)
+#     ocr_out = run_ocr(ocr_in)
+#     state.steps.append(NodeOutput(node="ocr", content=ocr_out.text))
+#     state.text += "\n" + ocr_out.text
+#     return state
+
+
+# Vision ノード（コメントアウト）
+# @tool
+# def vision_node(state: AgentState) -> AgentState:
+#     """DeepSeek-VL2 画像解析"""
+#     prompt = f"{state.text}\n\nこの画像の人物を日本語で説明してください。"
+#     img_in = ImageAnalysisInput(image_path=state.image_path, prompt=prompt)
+#     vis_out = run_image_analysis(img_in)
+#     state.steps.append(NodeOutput(node="vision", content=vis_out.summary))
+#     state.text += "\n" + vis_out.summary
+#     return state
+
+
+def reflection_node(state: AgentState) -> AgentState:
+    """推論ノード（Reflection）"""
+    refl_in = ReflectionInput(
+        initial_explanation=state.input, 
+        feedbacks=state.feedbacks
+    )
+    refl_out = run_reflection(refl_in)
+    state.feedbacks.append(refl_out.refined)
+    state.output = refl_out.refined
+    # state.feedbacks.append(NodeOutput(node="reflection", content=refl_out.refined))
+    return state
+
+
+# --- グラフ構築 -------------------------------------------------------------
+
+def build_workflow():
+    
+    workflow = StateGraph(AgentState)
+    # 今はリフレクションノードだけ
+    workflow.add_node("reflection", reflection_node)
+    
+    workflow.add_edge(START, "reflection")
+    workflow.add_edge("reflection", END)
+    # workflow.set_entry_point("reflection")
+
+    return workflow
+
+
+# --- 実行関数 ---------------------------------------------------------------
+
+async def run_agent(chat_request: ChatRequest):
     """
-    chat_request is instance of src.models.request_models.ChatRequest or dict-like
-    Flow:
-      1) OCR (optional) -> 2) Vision analysis -> 3) KB search -> 4) reflection x N -> return
+    LangGraphを実行。画像や知識検索は行わず、テキストベースのリフレクションのみ。
     """
-    # ensure pydantic or dict
-    try:
-        req = chat_request
-        # if dict -> construct ChatRequest lazily
-    except Exception:
-        req = chat_request
+    state = AgentState(
+        input=chat_request.text or "",
+        plans=[],
+        feedbacks=[],
+        output=None,
+        iteration=0,
+    )
 
-    steps = []
+    workflow = build_workflow()
+    runner = workflow.compile()
 
-    # 1) OCR: try extracting text if OCR model exists
-    if req.image_path:
-        try:
-            ocr_in = OCRInput(image_path=req.image_path)
-            ocr_out = run_ocr(ocr_in)
-            steps.append(NodeOutput(node="ocr", content=ocr_out.text))
-            # extend prompt with OCR text
-        except Exception as e:
-            steps.append(NodeOutput(node="ocr", content=f"ocr failed: {e}"))
-
-    # 2) Vision analysis (DeepSeek-VL2)
-    prompt = "この画像の人物の特徴・ポーズ・文化的モチーフを日本語で説明してください。"
-    if req.text:
-        # user text may be context or question; include it
-        prompt = f"{req.text}\n\n{prompt}"
-    img_in = ImageAnalysisInput(image_path=req.image_path, prompt=prompt)
-    vis_out = run_image_analysis(img_in)
-    steps.append(NodeOutput(node="vision", content=vis_out.summary))
-
-    # 3) Knowledge search: use vision summary as query
-    ks_in = KnowledgeSearchInput(query=vis_out.summary)
-    ks_out = run_knowledge_search(ks_in)
-    steps.append(NodeOutput(node="kb", content=str(len(ks_out.hits)) + " hits"))
-
-    # 4) Reflection loop
-    current = vis_out.summary
-    for i in range(max(1, getattr(req, "reflection_rounds", 2))):
-        refl_in = ReflectionInput(initial_explanation=current, hits=ks_out.hits)
-        refl_out = run_reflection(refl_in)
-        steps.append(NodeOutput(node=f"reflection_{i+1}", content=refl_out.refined))
-        current = refl_out.refined
-
-    # 5) Final answer: current
-    resp = AgentResponse(final_answer=current, steps=steps)
+    final_state = await runner.ainvoke(state)
+    resp = AgentResponse(final_answer=list(final_state.values())[0], steps=None)
     return resp

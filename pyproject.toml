@@ -7,13 +7,28 @@ requires-python = ">=3.11"
 dependencies = [
     "dash>=3.2.0",
     "fastapi>=0.120.4",
-    "huggingface-hub<1.0",
+    "huggingface-hub>=0.24.0",
     "langgraph>=1.0.2",
     "pillow>=12.0.0",
     "pydantic>=2.12.3",
     "python-multipart>=0.0.20",
     "requests>=2.32.5",
-    "torch>=2.9.0",
-    "transformers>=4.57.1",
+    "timm>=0.9.16",
+    "torch==2.0.1",
     "uvicorn>=0.38.0",
+    "xformers>=0.0.21",
+    "timm>=0.9.16",
+    "transformers==4.38.2",
+    "torchaudio>=2.0.2",
+    "torchvision>=0.15.2",
+    "deepseek-vl2",
+    "numpy<2",
+    "langchain>=1.0.3",
+    "accelerate>=1.11.0",
+    "sentencepiece>=0.2.1",
+    "attrdict>=2.0.1",
+    "einops>=0.8.1",
 ]
+
+[tool.uv.sources]
+deepseek-vl2 = { git = "https://github.com/deepseek-ai/DeepSeek-VL2.git" }

@@ -50,7 +50,8 @@ def handle_submit(n_clicks, contents, filename, user_text):
     resp = asyncio.run(run_agent(req))
     # format response
     children = [html.H4("Answer"), html.Pre(resp.final_answer)]
-    children.append(html.H4("Steps"))
-    for s in resp.steps:
-        children.append(html.Div([html.B(s.node), html.Pre(s.content)]))
+    # children.append(html.H4("Steps"))
+    # for s in resp.steps:
+    #     children.append(html.Div([html.B(s.node), html.Pre(s.content)]))
+
     return children
